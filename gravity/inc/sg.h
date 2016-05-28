@@ -82,6 +82,25 @@ namespace Gravity
                         // Trigger scene graph notification
                         m_sg.FireOnNodeParameterChange(this, key);
                     }
+
+                    /// \brief Modify parameter value by passing a lambda modifier.
+                    /// \details Comes in handy for complex array-like parameters where manual event triggers are
+                    /// required. If a key does not exist std::runtime_error is thrown.
+                    /// \param key Parameter key
+                    /// \param func A functor accepting value parameter
+                    template <typename T, typename Func> void ModifyValue(Key const& key, Func&& func)
+                    {
+                        // Try to find the parameter
+                        auto iter = m_paramset.find(key);
+
+                        if (iter == m_paramset.cend())
+                            throw std::runtime_error("Requested parameter not found");
+
+                        func(iter->second.template As<T>());
+
+                        // Trigger scene graph notification
+                        m_sg.FireOnNodeParameterChange(this, key);
+                    };
                     
                 private:
                     /// Scene graph
@@ -103,7 +122,7 @@ namespace Gravity
                 public:
                     virtual ~ParameterFactory() = default;
 
-                    // Produce the set of parameters for a given node type.
+                    /// Produce the set of parameters for a given node type.
                     virtual std::map<Key, Parameter> GetParameterSet(NodeType const& type) const = 0; 
             };
             
