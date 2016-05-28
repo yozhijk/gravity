@@ -139,7 +139,7 @@ TEST_F(App, UniversalParameter_SimpleTypes) {
 
     p = 3.7f;
 
-    ASSERT_EQ(p.As<float>(), 3.7f);
+    ASSERT_EQ(p.As<float>(), 3.8f);
     ASSERT_EQ(p.As < float const>(), 3.7f);
     ASSERT_EQ(p.As<float &&>(), 3.7f);
 }
