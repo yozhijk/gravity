@@ -16,4 +16,4 @@ before_script:
 
 script: make
 
-after_script: ./tests
+after_script: ./tests/tests
