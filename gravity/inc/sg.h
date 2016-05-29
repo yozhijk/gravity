@@ -104,6 +104,21 @@ namespace Gravity
                 m_sg.FireOnNodeParameterChange(this, key);
             };
 
+            /// \brief Get parameter value for a given key.
+            /// \details If the key does not exist in this node std::runtime_error is thrown.
+            template <typename T>
+            typename std::decay<T>::type& GetValue(Key const& key)
+            {
+                // Try to find the parameter
+                auto iter = m_paramset.find(key);
+
+                if (iter == m_paramset.cend())
+                    throw std::runtime_error("Requested parameter not found");
+
+                return iter->second.template As<T>();
+            }
+
+
         private:
             /// Scene graph
             SceneGraph<Key, NodeType, Parameter> &m_sg;
