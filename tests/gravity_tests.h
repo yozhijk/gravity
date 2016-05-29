@@ -1,4 +1,5 @@
 #pragma once
+
 #include "gtest/gtest.h"
 #include "sg.h"
 
@@ -8,7 +9,7 @@
 class ParameterFactory : public Gravity::DefaultSceneGraph::ParameterFactory
 {
 public:
-    std::map<std::string, Gravity::Parameter> GetParameterSet(std::uint32_t const& type) const override
+    std::map<std::string, Gravity::Parameter> GetParameterSet(std::uint32_t const &type) const override
     {
         switch (type)
         {
@@ -29,19 +30,21 @@ public:
 class App : public ::testing::Test
 {
 public:
-    virtual void SetUp() {
-        m_sg = new Gravity::DefaultSceneGraph(new ParameterFactory);
+    virtual void SetUp()
+    {
+        m_sg = Gravity::CreateDefaultSceneGraph(new ParameterFactory);
     }
 
-    virtual void TearDown() {
+    virtual void TearDown()
+    {
         delete m_sg;
     }
 
+    // Scene graph
     Gravity::DefaultSceneGraph *m_sg;
 };
 
 
-//check create/delete node functionality
 TEST_F(App, SceneGraph_Node)
 {
     auto node = m_sg->CreateNode(0);
@@ -49,10 +52,9 @@ TEST_F(App, SceneGraph_Node)
     ASSERT_EQ(node->GetType(), 0);
 
     ASSERT_NO_THROW(m_sg->DeleteNode(node));
-    ASSERT_ANY_THROW(m_sg->DeleteNode(node)); // node isn't valid anymore
+    ASSERT_ANY_THROW(m_sg->DeleteNode(node));
 }
 
-//check SetValue works properly
 TEST_F(App, SceneGraph_SetValue)
 {
     auto node = m_sg->CreateNode(0);
@@ -63,23 +65,24 @@ TEST_F(App, SceneGraph_SetValue)
     ASSERT_NO_THROW(node->SetValue("float_value", 5.f));
 }
 
-//check SetValue works properly
 TEST_F(App, SceneGraph_Callback)
 {
-//callbacks fired counters
+    // Callbacks fired counters
     int create_count = 0;
     int delete_count = 0;
     int update_count = 0;
 
-//setup callbacks
+    // Setup callbacks
     ASSERT_NO_THROW(m_sg->RegisterOnNodeCreateCallback(
-            [&create_count](Gravity::DefaultSceneGraph::Node *node) { ++create_count; }));
+            [&create_count](Gravity::DefaultSceneGraph::Node *node)
+            { ++create_count; }));
     ASSERT_NO_THROW(m_sg->RegisterOnNodeDeleteCallback(
-            [&delete_count](Gravity::DefaultSceneGraph::Node *node) { ++delete_count; }));
+            [&delete_count](Gravity::DefaultSceneGraph::Node *node)
+            { ++delete_count; }));
     ASSERT_NO_THROW(m_sg->RegisterOnNodeParameterChangeCallback(
-            [&update_count](Gravity::DefaultSceneGraph::Node *node, const std::string &key) { ++update_count; }));
+            [&update_count](Gravity::DefaultSceneGraph::Node *node, const std::string &key)
+            { ++update_count; }));
 
-//checks
     auto node = m_sg->CreateNode(0);
     ASSERT_NE(node, nullptr);
     ASSERT_EQ(create_count, 1);
@@ -93,23 +96,26 @@ TEST_F(App, SceneGraph_Callback)
 TEST_F(App, SceneGraph_Callback_Filter)
 {
 
-//callbacks fired counters
+    // Callbacks counters
     int create_count = 0;
     int delete_count = 0;
     int update_count = 0;
 
     std::set<std::uint32_t> filters = {0, 1};
-//setup callbacks
+
+    // Setup callbacks
     ASSERT_NO_THROW(m_sg->RegisterOnNodeCreateCallback(
-            [&create_count](Gravity::DefaultSceneGraph::Node *node) { ++create_count; }, filters));
+            [&create_count](Gravity::DefaultSceneGraph::Node *node)
+            { ++create_count; }, filters));
     ASSERT_NO_THROW(m_sg->RegisterOnNodeDeleteCallback(
-            [&delete_count](Gravity::DefaultSceneGraph::Node *node) { ++delete_count; }, filters));
+            [&delete_count](Gravity::DefaultSceneGraph::Node *node)
+            { ++delete_count; }, filters));
     ASSERT_NO_THROW(m_sg->RegisterOnNodeParameterChangeCallback(
-            [&update_count](Gravity::DefaultSceneGraph::Node *node, const std::string &key) { ++update_count; },
+            [&update_count](Gravity::DefaultSceneGraph::Node *node, const std::string &key)
+            { ++update_count; },
             filters));
 
-//checks
-//not in filter
+    // Not in the filter
     auto node = m_sg->CreateNode(2);
     ASSERT_NE(node, nullptr);
     ASSERT_EQ(create_count, 0);
@@ -119,6 +125,7 @@ TEST_F(App, SceneGraph_Callback_Filter)
     node = nullptr;
     ASSERT_EQ(delete_count, 0);
 
+    // In the filter
     node = m_sg->CreateNode(0);
     ASSERT_NE(node, nullptr);
     ASSERT_EQ(create_count, 1);
@@ -129,7 +136,7 @@ TEST_F(App, SceneGraph_Callback_Filter)
     ASSERT_EQ(delete_count, 1);
 }
 
-TEST_F(App, UniversalParameter_SimpleTypes)
+TEST_F(App, Parameter_SimpleTypes)
 {
     Gravity::Parameter p = 5;
 
@@ -150,7 +157,7 @@ TEST_F(App, UniversalParameter_SimpleTypes)
     ASSERT_EQ(p.As<float &&>(), 3.7f);
 }
 
-TEST_F(App, UniversalParameter_ComplexTypes)
+TEST_F(App, Parameter_ComplexTypes)
 {
     Gravity::Parameter p;
 
@@ -159,36 +166,39 @@ TEST_F(App, UniversalParameter_ComplexTypes)
     ASSERT_EQ(p.As<std::vector<int>>(), (std::vector<int>{1, 2, 3}));
 }
 
-TEST_F(App, SceneGraph_ModifyValue)
+TEST_F(App, Parameter_ModifyValue)
 {
-
-//callbacks fired counters
+    // Сallback counters
     int create_count = 0;
     int delete_count = 0;
     int update_count = 0;
 
-    std::set<std::uint32_t> filters = {0,1,2};
-//setup callbacks
+    std::set<std::uint32_t> filters = {0, 1, 2};
+
+    // Setup callbacks
     ASSERT_NO_THROW(m_sg->RegisterOnNodeCreateCallback(
-            [&create_count](Gravity::DefaultSceneGraph::Node *node) { ++create_count; }, filters));
+            [&create_count](Gravity::DefaultSceneGraph::Node *node)
+            { ++create_count; }, filters));
     ASSERT_NO_THROW(m_sg->RegisterOnNodeDeleteCallback(
-            [&delete_count](Gravity::DefaultSceneGraph::Node *node) { ++delete_count; }, filters));
+            [&delete_count](Gravity::DefaultSceneGraph::Node *node)
+            { ++delete_count; }, filters));
     ASSERT_NO_THROW(m_sg->RegisterOnNodeParameterChangeCallback(
-            [&update_count](Gravity::DefaultSceneGraph::Node *node, const std::string &key) { ++update_count; },
+            [&update_count](Gravity::DefaultSceneGraph::Node *node, const std::string &key)
+            { ++update_count; },
             filters));
 
     auto node = m_sg->CreateNode(0);
     ASSERT_NE(node, nullptr);
     ASSERT_EQ(create_count, 1);
-    ASSERT_NO_THROW(node->SetValue("type", std::vector<int>{1,2,3}));
+    ASSERT_NO_THROW(node->SetValue("type", std::vector<int>{1, 2, 3}));
     ASSERT_EQ(update_count, 1);
 
     ASSERT_NO_THROW(node->ModifyValue<std::vector<int>>("type",
-    [](std::vector<int>& val)
-    {
-        val.push_back(4);
-        val.push_back(5);
-    }
+                                                        [](std::vector<int> &val)
+                                                        {
+                                                            val.push_back(4);
+                                                            val.push_back(5);
+                                                        }
     ));
     ASSERT_EQ(update_count, 2);
 
