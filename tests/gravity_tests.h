@@ -5,6 +5,9 @@
 
 #include <map>
 #include <cstdint>
+#include <thread>
+#include <mutex>
+#include <random>
 
 class ParameterFactory : public Gravity::DefaultSceneGraph::ParameterFactory
 {
@@ -231,4 +234,100 @@ TEST_F(App, SceneGraph_Node_GetValue)
 
     ASSERT_NO_THROW(m_sg->DeleteNode(node));
 }
+
+TEST_F(App, SceneGraph_Multithreaded_Consistency)
+{
+    // Number of threads
+    int const kNumThreads = std::thread::hardware_concurrency();
+    // Number of nodes to create per thread
+    int const kNumNodesPerThread = 100;
+    std::vector<std::thread> threads(kNumThreads);
+
+    // Nodes are stored here
+    std::vector<Gravity::DefaultSceneGraph::Node*> nodes;
+    // Mutex to guard concurrent access to nodes array
+    std::mutex nodes_mutex;
+
+    // Start threads to concurrently create nodes
+    for (int i = 0; i < kNumThreads; ++i)
+    {
+        threads.push_back(std::thread([this, &nodes_mutex, &nodes]()
+                                 {
+                                     for (int j = 0; j < kNumNodesPerThread; ++j)
+                                     {
+                                         auto node = m_sg->CreateNode(0);
+
+                                         {
+                                             std::unique_lock<std::mutex> lock(nodes_mutex);
+
+                                             nodes.push_back(node);
+                                         }
+                                     }
+                                 }));
+    }
+
+    // Join all threads
+    for (int i = 0; i < kNumThreads; ++i)
+    {
+        threads[i].join();
+    }
+
+    threads.clear();
+
+    // Now create threads to randomly pick nodes and change node parameters concurrently
+    std::default_random_engine rng;
+    std::uniform_int_distribution<int> dist(0, kNumThreads * kNumNodesPerThread);
+    for (int i = 0; i < kNumThreads; ++i)
+    {
+        threads.push_back(std::thread([this, &nodes, &rng, &dist]()
+                                      {
+                                          for (int j = 0; j < kNumNodesPerThread; ++j)
+                                          {
+                                              int idx = dist(rng);
+                                              auto node = nodes[idx];
+
+                                              node->SetValue("type", dist(rng));
+                                          }
+                                      }));
+    }
+
+    // Join all threads
+    for (int i = 0; i < kNumThreads; ++i)
+    {
+        threads[i].join();
+    }
+
+    threads.clear();
+
+    // Now start threads to concurrently delete all the nodes
+    for (int i = 0; i < kNumThreads; ++i)
+    {
+        threads.push_back(std::thread([this, &nodes_mutex, &nodes, &rng, &dist]()
+                                      {
+                                          for (int j = 0; j < kNumNodesPerThread; ++j)
+                                          {
+                                              int idx = dist(rng);
+
+                                              auto node = nodes[idx];
+
+                                              {
+                                                  std::unique_lock<std::mutex> lock(nodes_mutex);
+
+                                                  auto iter = nodes.cbegin() + idx;
+
+                                                  nodes.erase(iter);
+                                              }
+
+                                              m_sg->DeleteNode(node);
+                                          }
+                                      }));
+    }
+
+    // Join all threads
+    for (int i = 0; i < kNumThreads; ++i)
+    {
+        threads[i].join();
+    }
+}
+
 

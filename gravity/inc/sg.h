@@ -327,5 +327,5 @@ namespace Gravity
 
     using DefaultSceneGraph = SceneGraph<std::string, std::uint32_t, Parameter>;
 
-    DefaultSceneGraph *CreateDefaultSceneGraph(DefaultSceneGraph::ParameterFactory *factory);
+    DefaultSceneGraph* CreateDefaultSceneGraph(DefaultSceneGraph::ParameterFactory *factory);
 }
