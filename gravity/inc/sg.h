@@ -16,6 +16,7 @@
 #include <list>
 #include <functional>
 #include <algorithm>
+#include <mutex>
 
 #include "parameter.h"
 
@@ -71,6 +72,8 @@ namespace Gravity
             template<typename T>
             void SetValue(Key const &key, T &&value)
             {
+                std::unique_lock<std::recursive_mutex> lock(m_paramset_mutex);
+
                 // Try to find the parameter
                 auto iter = m_paramset.find(key);
 
@@ -92,6 +95,8 @@ namespace Gravity
             template<typename T, typename Func>
             void ModifyValue(Key const &key, Func &&func)
             {
+                std::unique_lock<std::recursive_mutex> lock(m_paramset_mutex);
+
                 // Try to find the parameter
                 auto iter = m_paramset.find(key);
 
@@ -109,6 +114,8 @@ namespace Gravity
             template <typename T>
             typename std::decay<T>::type& GetValue(Key const& key)
             {
+                std::unique_lock<std::recursive_mutex> lock(m_paramset_mutex);
+
                 // Try to find the parameter
                 auto iter = m_paramset.find(key);
 
@@ -126,6 +133,8 @@ namespace Gravity
             NodeType m_type;
             /// Parameter set
             std::map<Key, Parameter> m_paramset;
+            /// Parameter guard mutex
+            std::recursive_mutex m_paramset_mutex;
         };
 
         /**
@@ -234,10 +243,15 @@ namespace Gravity
         {
             // Allocate and construct the node
             auto node = new Node(*this, type, m_param_factory->GetParameterSet(type));
-            // Emplace it into the scene
-            m_nodes.emplace(node);
-            // Notify the observers
-            FireOnNodeCreate(node);
+
+            {
+                std::unique_lock<std::recursive_mutex> lock(m_nodes_mutex);
+                // Emplace it into the scene
+                m_nodes.emplace(node);
+                // Notify the observers
+                FireOnNodeCreate(node);
+            }
+
             // Return node pointer (clients use it as ID, no need to delete)
             return node;
         }
@@ -245,6 +259,8 @@ namespace Gravity
         /// Delete the node.
         void DeleteNode(Node *node)
         {
+            std::unique_lock<std::recursive_mutex> lock(m_nodes_mutex);
+
             // Try to find the node in our scene
             auto iter = std::find_if(m_nodes.cbegin(), m_nodes.cend(), [node](std::unique_ptr<Node> const &ptr)
             { return ptr.get() == node; });
@@ -302,6 +318,8 @@ namespace Gravity
         using NodeSet = std::set<std::unique_ptr<Node>>;
         /// Set of nodes for the scene.
         NodeSet m_nodes;
+        /// Nodes guard mutex
+        std::recursive_mutex m_nodes_mutex;
         // Parameter factory.
         std::unique_ptr<ParameterFactory> m_param_factory;
         // Callback containers.
