@@ -241,7 +241,7 @@ TEST_F(App, SceneGraph_Multithreaded_Consistency)
     int const kNumThreads = std::thread::hardware_concurrency();
     // Number of nodes to create per thread
     int const kNumNodesPerThread = 100;
-    std::vector<std::thread> threads(kNumThreads);
+    std::vector<std::thread> threads;
 
     // Nodes are stored here
     std::vector<Gravity::DefaultSceneGraph::Node*> nodes;
@@ -251,7 +251,7 @@ TEST_F(App, SceneGraph_Multithreaded_Consistency)
     // Start threads to concurrently create nodes
     for (int i = 0; i < kNumThreads; ++i)
     {
-        threads.push_back(std::thread([this, &nodes_mutex, &nodes]()
+        threads.push_back(std::thread([this, &nodes_mutex, &nodes, kNumNodesPerThread]()
                                  {
                                      for (int j = 0; j < kNumNodesPerThread; ++j)
                                      {
@@ -276,14 +276,14 @@ TEST_F(App, SceneGraph_Multithreaded_Consistency)
 
     // Now create threads to randomly pick nodes and change node parameters concurrently
     std::default_random_engine rng;
-    std::uniform_int_distribution<int> dist(0, kNumThreads * kNumNodesPerThread);
+    std::uniform_int_distribution<int> dist;
     for (int i = 0; i < kNumThreads; ++i)
     {
-        threads.push_back(std::thread([this, &nodes, &rng, &dist]()
+        threads.push_back(std::thread([this, &nodes, &rng, &dist, kNumNodesPerThread, kNumThreads]()
                                       {
                                           for (int j = 0; j < kNumNodesPerThread; ++j)
                                           {
-                                              int idx = dist(rng);
+                                              int idx = dist(rng) % kNumThreads * kNumNodesPerThread;
                                               auto node = nodes[idx];
 
                                               node->SetValue("type", dist(rng));
@@ -302,16 +302,17 @@ TEST_F(App, SceneGraph_Multithreaded_Consistency)
     // Now start threads to concurrently delete all the nodes
     for (int i = 0; i < kNumThreads; ++i)
     {
-        threads.push_back(std::thread([this, &nodes_mutex, &nodes, &rng, &dist]()
+        threads.push_back(std::thread([this, &nodes_mutex, &nodes, &rng, &dist, kNumNodesPerThread]()
                                       {
                                           for (int j = 0; j < kNumNodesPerThread; ++j)
                                           {
-                                              int idx = dist(rng);
-
-                                              auto node = nodes[idx];
-
+                                              Gravity::DefaultSceneGraph::Node* node = nullptr;
                                               {
                                                   std::unique_lock<std::mutex> lock(nodes_mutex);
+
+                                                  int idx = dist(rng) % nodes.size();
+
+                                                  node = nodes[idx];
 
                                                   auto iter = nodes.cbegin() + idx;
 
